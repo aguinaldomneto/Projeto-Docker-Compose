@@ -1,0 +1,64 @@
+name: CI/CD DevOps Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: aguinaldomneto/projeto-devops
+
+jobs:
+
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    # 🔹 1. Baixa o código do repositório
+    - name: Checkout do código
+      uses: actions/checkout@v3
+
+    # 🔹 2. Login no Docker Hub (usa secrets)
+    - name: Login no Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USER }}
+        password: ${{ secrets.DOCKER_PASS }}
+
+    # 🔹 3. Definir versão automática (timestamp)
+    - name: Definir versão
+      id: version
+      run: echo "VERSION=v1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+    # 🔹 4. Build da imagem
+    - name: Build da imagem
+      run: |
+        docker build -t $IMAGE_NAME:${{ steps.version.outputs.VERSION }} \
+                     -t $IMAGE_NAME:latest .
+
+    # 🔹 5. Push para Docker Hub
+    - name: Push da imagem
+      run: |
+        docker push $IMAGE_NAME:${{ steps.version.outputs.VERSION }}
+        docker push $IMAGE_NAME:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+
+    # 🔹 Deploy via SSH na sua EC2
+    - name: Deploy no servidor
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_IP }}
+        username: ubuntu
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          cd ~/projeto-devops
+          export VERSION=${{ needs.build-and-push.outputs.VERSION }}
+          docker compose down
+          docker compose pull
+          docker compose up -d
