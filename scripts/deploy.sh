@@ -1,12 +1,18 @@
-#!/bin/bash
+script: |
+  cd ~/projeto-devops
 
-VERSION=$1
+  VERSION="${{ needs.build-and-push.outputs.VERSION }}"
 
-export VERSION=$VERSION
+  echo "Versão recebida: $VERSION"
 
-echo "🚀 Deploy da versão $VERSION..."
+  if [ -z "$VERSION" ]; then
+    echo "❌ VERSION está vazia"
+    exit 1
+  fi
 
-docker compose down
-docker compose up -d
+  export VERSION=$VERSION
 
-echo "✅ Deploy finalizado!"
+  docker compose down
+  docker compose pull
+  docker compose up -d
+  echo "deploy finalizado"
