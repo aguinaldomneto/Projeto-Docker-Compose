@@ -19,8 +19,8 @@ spec:
     spec:
       containers:
         - name: app
-          image: devops-app:v1
-          imagePullPolicy: Never
+          image: aguinaldomneto/devops-app:latest
+          imagePullPolicy: Always
 
           ports:
             - containerPort: 80

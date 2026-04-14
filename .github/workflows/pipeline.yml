@@ -1,0 +1,49 @@
+name: CI/CD DevOps
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    outputs:
+      VERSION: ${{ steps.version.outputs.VERSION }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Gerar versão
+        id: version
+        run: echo "VERSION=v1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+      - name: Build image
+        run: docker build -t ${{ secrets.DOCKER_USER }}/devops-app:${{ steps.version.outputs.VERSION }} .
+
+      - name: Push image
+        run: docker push ${{ secrets.DOCKER_USER }}/devops-app:${{ steps.version.outputs.VERSION }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy no servidor
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: SEU_IP
+          username: ubuntu
+          key: ${{ secrets.SSH_KEY }}
+
+          script: |
+            cd ~/devops/projects/devops-app
+            export VERSION=${{ needs.build-and-push.outputs.VERSION }}
+            kubectl set image deployment/devops-app app=${{ secrets.DOCKER_USER }}/devops-app:$VERSION
